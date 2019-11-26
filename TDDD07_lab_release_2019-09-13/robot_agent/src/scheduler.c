@@ -147,7 +147,8 @@ void scheduler_run(scheduler_t *ces)
 	struct timeval start;
 
 	/* --- Set minor cycle period --- */
-	ces->minor = 1 * 100;
+	ces->minor = 130;
+	//ces->
 
 	/* --- Write your code here --- */
 	printf("Scheduler Running.\n");
@@ -157,6 +158,7 @@ void scheduler_run(scheduler_t *ces)
 
 	while (!stop)
 	{
+
 		timelib_timer_set(&start);
 
 		scheduler_exec_task(ces, s_TASK_MISSION_ID);
@@ -168,26 +170,24 @@ void scheduler_run(scheduler_t *ces)
 		scheduler_exec_task(ces, s_TASK_CONTROL_ID);
 		double exec_time3 = timelib_timer_get(start);
 
-		scheduler_exec_task(ces, s_TASK_REPORT_ID);
+		scheduler_exec_task(ces, s_TASK_AVOID_ID);
 		double exec_time4 = timelib_timer_get(start);
 
 		scheduler_exec_task(ces, s_TASK_REFINE_ID);
 		double exec_time5 = timelib_timer_get(start);
 
-		scheduler_exec_task(ces, s_TASK_AVOID_ID);
+		scheduler_exec_task(ces, s_TASK_REPORT_ID);
 		double exec_time6 = timelib_timer_get(start);
 
 		scheduler_exec_task(ces, s_TASK_COMMUNICATE_ID);
 		double exec_time7 = timelib_timer_get(start);
 
-		printf("exec_time1 %f ms.\n", exec_time1);
-		printf("exec_time2 %f ms.\n", exec_time2);
-		printf("exec_time3 %f ms.\n", exec_time3);
-		printf("exec_time4 %f ms.\n", exec_time4);
-		printf("exec_time5 %f ms.\n", exec_time5);
-		printf("exec_time6 %f ms.\n", exec_time6);
-		printf("exec_time7 %f ms.\n\n", exec_time7);
-
-		//scheduler_wait_for_timer(ces);
+		printf("s_TASK_MISSION_ID %f ms.\n", exec_time1);
+		printf("s_TASK_NAVIGATE_ID %f ms.\n", exec_time2 - exec_time1);
+		printf("s_TASK_CONTROL_ID %f ms.\n", exec_time3 - exec_time2);
+		printf("s_TASK_AVOID_ID %f ms.\n", exec_time4 - exec_time3);
+		printf("s_TASK_REFINE_ID %f ms.\n", exec_time5 - exec_time4);
+		printf("s_TASK_REPORT_ID %f ms.\n", exec_time6 - exec_time5);
+		printf("s_TASK_COMMUNICATE_ID %f ms.\n\n", exec_time7 - exec_time6);
 	}
 }
