@@ -26,14 +26,13 @@ volatile sig_atomic_t stop;
 #define NBR_TASKS 7
 #define MAJOR_CYCLE 3000
 
-int minor_cycle_overrun = 0;
-
 struct victims_info_struct
 {
 	char *id;
 	int x;
 	int y;
 };
+
 struct victims_info_struct victims_info[24] = {{"020058F5BD", 340, 340},
 											   {"020053A537", 975, 1115},
 											   {"020053E0BA", 1845, 925},
@@ -189,29 +188,40 @@ void scheduler_run(scheduler_t *ces)
 	/* --- Local variables (define variables here) --- */
 	signal(SIGINT, signal_handeling);
 	struct timeval start;
-	int i = 0;
+	int minor_cycle_overrun = 0;
+
+	double timestamp = timelib_unix_timestamp() / 1000; //To have seconds
+	double time_to_next_second = ceil(timestamp) - timestamp;
 
 	/* --- Set minor cycle period --- */
 	ces->minor = 100;
 
 	/* --- Write your code here --- */
 
-	int nbr_of_minor_cycles = MAJOR_CYCLE / ces->minor;
+	int minor_cycles = MAJOR_CYCLE / ces->minor;
 	printf("Scheduler Running.\n");
+
+	double time_to_wait = time_to_next_second + 0.125;
+
+	usleep(time_to_wait*1e6);
+
+	printf("%lf\n", time_to_next_second);
+	printf("%lf\n", time_to_wait);
 
 	// Start scheduler
 	scheduler_start(ces);
+	printf("start %lf\n", timelib_unix_timestamp() / 1000);
 
 	while (!stop)
 	{
-
-		for (i = 1; i <= nbr_of_minor_cycles; i++)
+		for (int i = 0; i <= minor_cycles-1; i++)
 		{
-
 			timelib_timer_set(&start);
 
-			if (i % 10 == 0)
+			if (i == 0 || i % 10 == 0){
 				scheduler_exec_task(ces, s_TASK_COMMUNICATE_ID);
+				printf("%lf\n", timelib_unix_timestamp() / 1000);
+			}
 
 			scheduler_exec_task(ces, s_TASK_REFINE_ID);
 
@@ -222,62 +232,17 @@ void scheduler_run(scheduler_t *ces)
 			if (i % 3 == 0)
 				scheduler_exec_task(ces, s_TASK_CONTROL_ID);
 
-			/* 			scheduler_exec_task(ces, s_TASK_REFINE_ID);
-
-			scheduler_exec_task(ces, s_TASK_REPORT_ID);
-
-			scheduler_exec_task(ces, s_TASK_MISSION_ID); */
-
 			scheduler_exec_task(ces, s_TASK_AVOID_ID);
 
 			scheduler_exec_task(ces, s_TASK_NAVIGATE_ID);
 
-			/* 			scheduler_exec_task(ces, s_TASK_REFINE_ID);
-
-			scheduler_exec_task(ces, s_TASK_REPORT_ID);
-
-			scheduler_exec_task(ces, s_TASK_MISSION_ID); */
-
 			double end = timelib_timer_get(start);
-
-			printf("end time : %lf\n", end);
 
 			if (end > ces->minor)
 				minor_cycle_overrun++;
 
 			scheduler_wait_for_timer(ces);
 		}
-
-		/* 		 timelib_timer_set(&start);
-
-		scheduler_exec_task(ces, s_TASK_MISSION_ID);
-		double exec_time1 = timelib_timer_get(start);
-
-		scheduler_exec_task(ces, s_TASK_NAVIGATE_ID);
-		double exec_time2 = timelib_timer_get(start);
-
-		scheduler_exec_task(ces, s_TASK_CONTROL_ID);
-		double exec_time3 = timelib_timer_get(start);
-
-		scheduler_exec_task(ces, s_TASK_AVOID_ID);
-		double exec_time4 = timelib_timer_get(start);
-
-		scheduler_exec_task(ces, s_TASK_REFINE_ID);
-		double exec_time5 = timelib_timer_get(start);
-
-		scheduler_exec_task(ces, s_TASK_REPORT_ID);
-		double exec_time6 = timelib_timer_get(start);
-
-		scheduler_exec_task(ces, s_TASK_COMMUNICATE_ID);
-		double exec_time7 = timelib_timer_get(start);
-
-		printf("s_TASK_MISSION_ID %f ms.\n", exec_time1);
-		printf("s_TASK_NAVIGATE_ID %f ms.\n", exec_time2 - exec_time1);
-		printf("s_TASK_CONTROL_ID %f ms.\n", exec_time3 - exec_time2);
-		printf("s_TASK_AVOID_ID %f ms.\n", exec_time4 - exec_time3);
-		printf("s_TASK_REFINE_ID %f ms.\n", exec_time5 - exec_time4);
-		printf("s_TASK_REPORT_ID %f ms.\n", exec_time6 - exec_time5);
-		printf("s_TASK_COMMUNICATE_ID %f ms.\n\n", exec_time7 - exec_time6); */
 	}
 
 	if (g_task_mission_data.victim_count > 0)
