@@ -32,6 +32,7 @@ void task_mission(void)
 
 		// -- Check go ahead timer --
 		go_ahead_time = (int)timelib_timer_get(g_task_mission_data.go_ahead_timer);
+		//printf("go_ahead_time = %d, g_queue_mission->count = %d\n",go_ahead_time,g_queue_mission->count);
 		if(go_ahead_time > s_CONFIG_GO_AHEAD_TIME)
 		{
 			g_go_ahead = 0;

@@ -25,6 +25,7 @@
 volatile sig_atomic_t stop;
 #define NBR_TASKS 7
 #define MAJOR_CYCLE 3000
+//#define MAJOR_CYCLE 1000
 
 struct victims_info_struct
 {
@@ -201,7 +202,7 @@ void scheduler_run(scheduler_t *ces)
 	int minor_cycles = MAJOR_CYCLE / ces->minor;
 	printf("Scheduler Running.\n");
 
-	double time_to_wait = time_to_next_second + 0.125;
+	double time_to_wait = time_to_next_second + 0.25;
 
 	usleep(time_to_wait*1e6);
 
@@ -214,13 +215,15 @@ void scheduler_run(scheduler_t *ces)
 
 	while (!stop)
 	{
-		for (int i = 0; i <= minor_cycles-1; i++)
+		//for (int i = 0; i <= minor_cycles-1; i++)
+		for (int i = 1; i <= minor_cycles; i++)
 		{
 			timelib_timer_set(&start);
 
-			if (i == 0 || i % 10 == 0){
+			if (i == 1  || i == 11 || i == 21 ){
+				printf("start : %lf\n", timelib_unix_timestamp() / 1000);
 				scheduler_exec_task(ces, s_TASK_COMMUNICATE_ID);
-				printf("%lf\n", timelib_unix_timestamp() / 1000);
+				printf("end : %lf\n\n", timelib_unix_timestamp() / 1000);
 			}
 
 			scheduler_exec_task(ces, s_TASK_REFINE_ID);
@@ -229,9 +232,10 @@ void scheduler_run(scheduler_t *ces)
 
 			scheduler_exec_task(ces, s_TASK_MISSION_ID);
 
-			if (i % 3 == 0)
+			if ( i % 6 ==  0){
 				scheduler_exec_task(ces, s_TASK_CONTROL_ID);
-
+			}
+				
 			scheduler_exec_task(ces, s_TASK_AVOID_ID);
 
 			scheduler_exec_task(ces, s_TASK_NAVIGATE_ID);
