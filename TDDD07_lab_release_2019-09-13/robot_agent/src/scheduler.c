@@ -1,9 +1,13 @@
 /**
  * @file	scheduler.c
  * @author  Eriks Zaharans and Massimiiliano Raciti
+ *  Modified by Sylvain Lapeyrade & Reda Bourakkadi
+ * 
  * @date    1 Jul 2013
- *
+ *  Last Update: 12/12/2019
+ * 
  * @section DESCRIPTION
+ *	TDDD07 Real Time Systems: Lab 1
  *
  * Cyclic executive scheduler library.
  */
@@ -22,18 +26,16 @@
 #include "timelib.h"
 
 /* -- Defines -- */
-volatile sig_atomic_t stop;
-#define NBR_TASKS 7
-#define MAJOR_CYCLE 3000
-//#define MAJOR_CYCLE 1000
+#define MAJOR_CYCLE 3000 // Our major cycle in ms (<=>3 seconds)
 
 struct victims_info_struct
 {
-	char *id;
-	int x;
-	int y;
+	char *id; // Victim ID
+	int x;	// Victim X position
+	int y;	// Victim Y position
 };
 
+/* Id with x and y positions of the victims (taken from the pdf) */
 struct victims_info_struct victims_info[24] = {{"020058F5BD", 340, 340},
 											   {"020053A537", 975, 1115},
 											   {"020053E0BA", 1845, 925},
@@ -60,14 +62,7 @@ struct victims_info_struct victims_info[24] = {{"020058F5BD", 340, 340},
 											   {"01004BDF7B", 320, 1800}};
 
 /* -- Functions -- */
-float victim_distance(char *id, int x, int y)
-{
-	for (int i = 0; i < 24; i++)
-	{
-		if (strcmp(id, victims_info[i].id) == 0)
-			return sqrt(pow(victims_info[i].x - abs(x), 2) + pow(victims_info[i].y - abs(y), 2));
-	}
-}
+
 /**
  * Initialize cyclic executive scheduler
  * @param minor Minor cycle in miliseconds (ms)
@@ -173,10 +168,32 @@ void scheduler_exec_task(scheduler_t *ces, int task_id)
 	}
 }
 
+/**
+ * Catch the SIGINT signal and interrupt the main while functions
+ */
 void signal_handeling()
 {
 	stop = 1;
 	printf("Interrupt Signal sent.\n");
+}
+
+/**
+ * Compute the euclidian distance between the real and measured victim position 
+ * @param id Id of the victim
+ * @param x X coordinate of the victim
+ * @param y Y coordinate of the victim
+ * @return The euclidian distance from the real and measured position of the victim
+ */
+float victim_distance(char *id, int x, int y)
+{
+	for (int i = 0; i < 24; i++)
+	{
+		if (strcmp(id, victims_info[i].id) == 0)
+		{
+			return sqrt(pow(victims_info[i].x - abs(x), 2) +
+						pow(victims_info[i].y - abs(y), 2));
+		}
+	}
 }
 
 /**
@@ -187,43 +204,43 @@ void signal_handeling()
 void scheduler_run(scheduler_t *ces)
 {
 	/* --- Local variables (define variables here) --- */
-	signal(SIGINT, signal_handeling);
-	struct timeval start;
-	int minor_cycle_overrun = 0;
+	signal(SIGINT, signal_handeling); // Signal used when CTRL+C
+	struct timeval start_time;		  // Timer used to measure execution time
+	int minor_cycle_overrun = 0;	  // Counter on minor cycle overrun
 
-	double timestamp = timelib_unix_timestamp() / 1000; //To have seconds
-	double time_to_next_second = ceil(timestamp) - timestamp;
+	// Get UNIX timestamp in miliseconds
+	double current_second = timelib_unix_timestamp() / 1000; // To have second
+	double time_to_next_second = ceil(current_second) - current_second;
 
 	/* --- Set minor cycle period --- */
-	ces->minor = 100;
+	ces->minor = 100; // Our minor cycle is 100 ms
 
 	/* --- Write your code here --- */
 
-	int minor_cycles = MAJOR_CYCLE / ces->minor;
+	// Number of minor cycles : 3000/100 = 10
 	printf("Scheduler Running.\n");
 
-	double time_to_wait = time_to_next_second + 0.25;
+	int minor_cycles = MAJOR_CYCLE / ces->minor;
+	// Time to wait until our next time slot for communicating (in seconds)
+	double time_to_wait = time_to_next_second + 0.25; // 0.125 * (ID-1)
 
-	usleep(time_to_wait*1e6);
-
-	printf("%lf\n", time_to_next_second);
-	printf("%lf\n", time_to_wait);
+	// Sleep until our communication timeslot
+	usleep(time_to_wait * 1e6);
 
 	// Start scheduler
 	scheduler_start(ces);
-	printf("start %lf\n", timelib_unix_timestamp() / 1000);
 
 	while (!stop)
 	{
-		//for (int i = 0; i <= minor_cycles-1; i++)
 		for (int i = 1; i <= minor_cycles; i++)
 		{
-			timelib_timer_set(&start);
+			timelib_timer_set(&start_time); // Start the timer
 
-			if (i == 1  || i == 11 || i == 21 ){
-				printf("start : %lf\n", timelib_unix_timestamp() / 1000);
+			if (i == 1 || i == 11 || i == 21) // Communicate every second
+			{
+				printf("Communication start: %lf\n", timelib_unix_timestamp() / 1000);
 				scheduler_exec_task(ces, s_TASK_COMMUNICATE_ID);
-				printf("end : %lf\n\n", timelib_unix_timestamp() / 1000);
+				printf("Communication end: %lf\n\n", timelib_unix_timestamp() / 1000);
 			}
 
 			scheduler_exec_task(ces, s_TASK_REFINE_ID);
@@ -232,34 +249,46 @@ void scheduler_run(scheduler_t *ces)
 
 			scheduler_exec_task(ces, s_TASK_MISSION_ID);
 
-			if ( i % 6 ==  0){
+			if (i % 6 == 0) // Control task every 600 ms (can be a bit lower)
+			{
 				scheduler_exec_task(ces, s_TASK_CONTROL_ID);
 			}
-				
+
 			scheduler_exec_task(ces, s_TASK_AVOID_ID);
 
 			scheduler_exec_task(ces, s_TASK_NAVIGATE_ID);
 
-			double end = timelib_timer_get(start);
+			double end_time = timelib_timer_get(start_time); // Stop the timer
 
-			if (end > ces->minor)
-				minor_cycle_overrun++;
+			// If execution time of the tasks took more time than the minor cycle
+			if (end_time > ces->minor)
+			{
+				minor_cycle_overrun++; // Increment overrun number
+			}
 
-			scheduler_wait_for_timer(ces);
+			scheduler_wait_for_timer(ces); // Wait until the end of the minor task
 		}
 	}
 
+	// For each victims detected by the robot, print the id and coordinates and
+	// print the distance from the actual position as well as the average distance
 	if (g_task_mission_data.victim_count > 0)
 	{
 		float average_distance = 0;
 		for (int j = 0; j < g_task_mission_data.victim_count; j++)
 		{
-			float distance = victim_distance(g_task_mission_data.victims[j].id, g_task_mission_data.victims[j].x, g_task_mission_data.victims[j].y);
+			float distance = victim_distance(g_task_mission_data.victims[j].id,
+											 g_task_mission_data.victims[j].x,
+											 g_task_mission_data.victims[j].y);
 			average_distance += distance;
-			printf(" id : %s x : %d y : %d distance : %f\n", g_task_mission_data.victims[j].id, g_task_mission_data.victims[j].x, g_task_mission_data.victims[j].y, distance);
+			printf("Victim id : %s x : %d y : %d distance : %f\n",
+				   g_task_mission_data.victims[j].id,
+				   g_task_mission_data.victims[j].x,
+				   g_task_mission_data.victims[j].y, distance);
 		}
-		printf("Average distance = %f\n", average_distance / g_task_mission_data.victim_count);
+		printf("Average distance of  victims = %f\n", average_distance /
+														  g_task_mission_data.victim_count);
 	}
 
-	printf("minor_cycle_overrun  : %d\n", minor_cycle_overrun);
+	printf("Number of minor cycle overrun  : %d\n", minor_cycle_overrun);
 }
