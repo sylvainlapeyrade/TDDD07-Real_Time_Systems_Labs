@@ -35,7 +35,7 @@ void task_mission(void)
 		//printf("go_ahead_time = %d, g_queue_mission->count = %d\n",go_ahead_time,g_queue_mission->count);
 		if(go_ahead_time > s_CONFIG_GO_AHEAD_TIME)
 		{
-			// g_go_ahead = 0;
+			g_go_ahead = 0;
 		}
 
 		// -- Process all data in the queue --

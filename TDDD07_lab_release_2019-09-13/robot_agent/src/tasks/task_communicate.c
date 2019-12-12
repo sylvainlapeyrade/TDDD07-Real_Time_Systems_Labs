@@ -56,10 +56,13 @@ void task_communicate(void)
 
 		// Data rate is 153600 bits per second so we have:
 		// 153600/8 = 19200 bytes and since there are 8 robots:
-		// 19200/8 = 2400. We have taken 2300 to have 10% security
-		int max_data_to_send = 2160;
+		// 19200/8 = 2400. We have taken 2160 to have 10% safety
+		float max_data_to_send = 2160;
+		float critical_data_sent = 0;
+		float pheromone_data_sent = 0;
+		float stream_data_sent = 0;
 
-		int data_sent = 0; // Counter of bytes sent
+		float data_sent = 0; // Counter of bytes sent
 
 		/* --- Send Data --- */
 
@@ -120,8 +123,8 @@ void task_communicate(void)
 									data_type,
 									data);
 					// Broadcast packet
-					udp_broadcast(g_udps, udp_packet, udp_packet_len);
 					data_sent += udp_packet_len;
+					udp_broadcast(g_udps, udp_packet, udp_packet_len);
 				}
 				else if (data_type == s_DATA_STRUCT_TYPE_PHEROMONE)
 				{ // Insert in pheromone list
@@ -136,7 +139,9 @@ void task_communicate(void)
 			free(data);
 		}
 
-		printf("Sending pheromone information.\n");
+		critical_data_sent = data_sent / max_data_to_send;
+		printf("Critical data sent %f\n", critical_data_sent);
+
 		// If there is still pheromone data and still space to send
 		while (pheromone_list->count > 0 && data_sent <= max_data_to_send)
 		{
@@ -159,16 +164,22 @@ void task_communicate(void)
 
 			data_sent += udp_packet_len;
 			if (data_sent <= max_data_to_send) // If there is still space for sending
-			{ 
+			{
 				// Broadcast packet
 				udp_broadcast(g_udps, udp_packet, udp_packet_len);
+			}
+			else
+			{
+				data_sent -= udp_packet_len;
 			}
 			// Free memory
 			free(data);
 		}
 		doublylinkedlist_destroy(pheromone_list); // Free the pheromone list
 
-		printf("Sending stream information.\n");
+		pheromone_data_sent = data_sent / max_data_to_send - critical_data_sent;
+		printf("Pheromone data sent %f\n", pheromone_data_sent);
+
 		// If there is still stream data and still space to send
 		while (stream_list->count > 0 && data_sent <= max_data_to_send)
 		{
@@ -190,15 +201,22 @@ void task_communicate(void)
 
 			data_sent += udp_packet_len;
 			if (data_sent <= max_data_to_send) // If there is still space for sending
-			{ 
+			{
 				// Broadcast packet
 				udp_broadcast(g_udps, udp_packet, udp_packet_len);
+			}
+			else
+			{
+				data_sent -= udp_packet_len;
 			}
 
 			// Free memory
 			free(data);
 		}
 		doublylinkedlist_destroy(stream_list); // Free the stream list
+
+		stream_data_sent = data_sent / max_data_to_send - pheromone_data_sent - critical_data_sent;
+		printf("Stream data sent %f\n", stream_data_sent);
 
 		/* --- Receive Data --- */
 		// Receive packets, decode and forward to proper process
