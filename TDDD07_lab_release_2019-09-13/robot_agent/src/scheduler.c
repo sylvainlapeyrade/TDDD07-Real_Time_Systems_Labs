@@ -27,6 +27,7 @@
 
 /* -- Defines -- */
 #define MAJOR_CYCLE 3000 // Our major cycle in ms (<=>3 seconds)
+volatile sig_atomic_t stop; 
 
 struct victims_info_struct
 {
@@ -249,7 +250,7 @@ void scheduler_run(scheduler_t *ces)
 
 			scheduler_exec_task(ces, s_TASK_MISSION_ID);
 
-			if (i % 6 == 0) // Control task every 600 ms (can be a bit lower)
+			if (i == 1 || i == 11 || i == 21) // Control task every 600 ms (can be a bit lower)
 			{
 				scheduler_exec_task(ces, s_TASK_CONTROL_ID);
 			}

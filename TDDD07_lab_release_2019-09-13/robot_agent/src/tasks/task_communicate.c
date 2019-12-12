@@ -47,7 +47,7 @@ void task_communicate(void)
 		// a pointer to a doublylinkedlist_t for designating list
 		doublylinkedlist_t *pheromone_list = doublylinkedlist_init();
 		doublylinkedlist_t *stream_list = doublylinkedlist_init();
-		doublylinkedlist_t **send_list;
+		doublylinkedlist_t **reference_list;
 
 		// --------------------------------------------------
 		//	LAB 2 starts here
@@ -63,7 +63,7 @@ void task_communicate(void)
 
 		/* --- Send Data --- */
 
-		printf("Sending Robot position and Victim position:\n");
+		printf("Sending Robot position and Victim position.\n");
 		// While the maximum data sendable isn't reached
 		while (g_list_send->count != 0)
 		{
@@ -83,7 +83,7 @@ void task_communicate(void)
 			// Pheromone map
 			case s_DATA_STRUCT_TYPE_PHEROMONE:
 				data = (void *)malloc(sizeof(pheromone_map_sector_t));
-				send_list = &pheromone_list;
+				reference_list = &pheromone_list; // References pheromone list
 				break;
 			// Command (for future use)
 			case s_DATA_STRUCT_TYPE_CMD:
@@ -91,7 +91,7 @@ void task_communicate(void)
 				break;
 			case s_DATA_STRUCT_TYPE_STREAM:
 				data = (void *)malloc(sizeof(stream_t));
-				send_list = &stream_list;
+				reference_list = &stream_list; // References stream list
 				break;
 			// Other
 			default:
@@ -102,8 +102,9 @@ void task_communicate(void)
 
 			// Get data from the list
 			doublylinkedlist_remove(g_list_send, g_list_send->first, data, &data_type);
-			if (data_sent < max_data_to_send)
+			if (data_sent < max_data_to_send) // If there is still space for sending
 			{
+				// If the data is critical
 				if (data_type == s_DATA_STRUCT_TYPE_ROBOT || data_type == s_DATA_STRUCT_TYPE_VICTIM)
 				{
 					// Encode data into UDP packet
@@ -123,22 +124,22 @@ void task_communicate(void)
 					data_sent += udp_packet_len;
 				}
 				else if (data_type == s_DATA_STRUCT_TYPE_PHEROMONE)
-				{
-					doublylinkedlist_insert_beginning(*send_list, data, data_type);
+				{ // Insert in pheromone list
+					doublylinkedlist_insert_beginning(*reference_list, data, data_type);
 				}
 				else if (data_type == s_DATA_STRUCT_TYPE_STREAM)
-				{
-					doublylinkedlist_insert_beginning(*send_list, data, data_type);
+				{ // Insert in stream list
+					doublylinkedlist_insert_beginning(*reference_list, data, data_type);
 				}
 			}
 			// Free memory
 			free(data);
 		}
 
-		printf("Sending pheromone information:\n");
+		printf("Sending pheromone information.\n");
+		// If there is still pheromone data and still space to send
 		while (pheromone_list->count > 0 && data_sent <= max_data_to_send)
 		{
-			seq++;
 
 			data = (void *)malloc(sizeof(pheromone_map_sector_t));
 			doublylinkedlist_remove(pheromone_list, pheromone_list->first, data, &data_type);
@@ -155,21 +156,22 @@ void task_communicate(void)
 							last_id,
 							data_type,
 							data);
-			// Broadcast packet
-			data_sent += udp_packet_len;
-			if (data_sent <= max_data_to_send)
-				udp_broadcast(g_udps, udp_packet, udp_packet_len);
 
+			data_sent += udp_packet_len;
+			if (data_sent <= max_data_to_send) // If there is still space for sending
+			{ 
+				// Broadcast packet
+				udp_broadcast(g_udps, udp_packet, udp_packet_len);
+			}
 			// Free memory
 			free(data);
 		}
 		doublylinkedlist_destroy(pheromone_list); // Free the pheromone list
 
-		printf("Sending stream information:\n");
+		printf("Sending stream information.\n");
+		// If there is still stream data and still space to send
 		while (stream_list->count > 0 && data_sent <= max_data_to_send)
 		{
-			seq++;
-
 			data = (void *)malloc(sizeof(stream_t));
 			doublylinkedlist_remove(stream_list, stream_list->first, data, &data_type);
 
@@ -185,10 +187,13 @@ void task_communicate(void)
 							last_id,
 							data_type,
 							data);
-			// Broadcast packet
+
 			data_sent += udp_packet_len;
-			if (data_sent <= max_data_to_send)
+			if (data_sent <= max_data_to_send) // If there is still space for sending
+			{ 
+				// Broadcast packet
 				udp_broadcast(g_udps, udp_packet, udp_packet_len);
+			}
 
 			// Free memory
 			free(data);
