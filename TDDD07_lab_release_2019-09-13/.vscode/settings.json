@@ -1,8 +1,0 @@
-{
-    "files.associations": {
-        "thread": "c",
-        "task.h": "c",
-        "cmath": "c",
-        "chrono": "c"
-    }
-}

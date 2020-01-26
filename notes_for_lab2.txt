@@ -1,4 +1,0 @@
-uncomment go_ahead task_mission.c
-Check TDMA Compliant
-
-timelib_unix_timestamp => start at time 0 on the time line
